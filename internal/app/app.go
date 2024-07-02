@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,7 +19,7 @@ var memoryStorage storage.Storage[string, entity.ShortenUrl]
 func Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", shortenUrl)
-	mux.HandleFunc("/{id}/", getOriginalUrl)
+	mux.HandleFunc("/{id}", getOriginalUrl)
 
 	memoryStorage = new(memory.ShortenUrlMemoryStorage)
 
@@ -66,7 +67,12 @@ func shortenUrl(response http.ResponseWriter, request *http.Request) {
 
 	response.WriteHeader(http.StatusCreated)
 	response.Header().Set("Content-Type", "text/plain")
-	response.Write([]byte(shortUrl))
+
+	prefix := fmt.Sprintf("%s://%s/", request.URL.Scheme, request.Host)
+	if request.TLS == nil {
+		prefix = "http" + prefix
+	}
+	response.Write([]byte(prefix + shortUrl))
 }
 
 func getOriginalUrl(response http.ResponseWriter, request *http.Request) {

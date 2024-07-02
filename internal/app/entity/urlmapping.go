@@ -1,6 +1,6 @@
 package entity
 
-type ShortenUrl struct {
-	Url         string
-	OriginalUrl string
+type ShortenURL struct {
+	URL         string
+	OriginalURL string
 }

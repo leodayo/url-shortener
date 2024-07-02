@@ -14,14 +14,14 @@ import (
 
 const linkLength = 6
 
-var memoryStorage storage.Storage[string, entity.ShortenUrl]
+var memoryStorage storage.Storage[string, entity.ShortenURL]
 
 func Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", shortenUrl)
 	mux.HandleFunc("/{id}", getOriginalUrl)
 
-	memoryStorage = new(memory.ShortenUrlMemoryStorage)
+	memoryStorage = new(memory.ShortenURLMemoryStorage)
 
 	return http.ListenAndServe("localhost:8080", mux)
 }
@@ -56,7 +56,7 @@ func shortenUrl(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	ok := memoryStorage.Store(entity.ShortenUrl{Url: shortUrl, OriginalUrl: originalUrl})
+	ok := memoryStorage.Store(entity.ShortenURL{URL: shortUrl, OriginalURL: originalUrl})
 
 	if !ok {
 		// Likely a collision happened
@@ -83,5 +83,5 @@ func getOriginalUrl(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	http.Redirect(response, request, shortenUrl.OriginalUrl, http.StatusTemporaryRedirect)
+	http.Redirect(response, request, shortenUrl.OriginalURL, http.StatusTemporaryRedirect)
 }

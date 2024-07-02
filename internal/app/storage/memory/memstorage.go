@@ -6,19 +6,19 @@ import (
 	"github.com/leodayo/url-shortener/internal/app/entity"
 )
 
-type ShortenUrlMemoryStorage struct {
+type ShortenURLMemoryStorage struct {
 	syncMap sync.Map
 }
 
-func (storage *ShortenUrlMemoryStorage) Store(entity entity.ShortenUrl) bool {
-	_, loaded := storage.syncMap.LoadOrStore(entity.Url, entity)
+func (storage *ShortenURLMemoryStorage) Store(entity entity.ShortenURL) bool {
+	_, loaded := storage.syncMap.LoadOrStore(entity.URL, entity)
 	return !loaded
 }
 
-func (storage *ShortenUrlMemoryStorage) Retrieve(key string) (e entity.ShortenUrl, ok bool) {
+func (storage *ShortenURLMemoryStorage) Retrieve(key string) (e entity.ShortenURL, ok bool) {
 	v, ok := storage.syncMap.Load(key)
 	if !ok {
 		return e, ok
 	}
-	return v.(entity.ShortenUrl), ok
+	return v.(entity.ShortenURL), ok
 }

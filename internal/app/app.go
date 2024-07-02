@@ -18,15 +18,15 @@ var memoryStorage storage.Storage[string, entity.ShortenURL]
 
 func Run() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", shortenUrl)
-	mux.HandleFunc("/{id}", getOriginalUrl)
+	mux.HandleFunc("/", shortenURL)
+	mux.HandleFunc("/{id}", getOriginalURL)
 
 	memoryStorage = new(memory.ShortenURLMemoryStorage)
 
 	return http.ListenAndServe("localhost:8080", mux)
 }
 
-func shortenUrl(response http.ResponseWriter, request *http.Request) {
+func shortenURL(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		http.Error(response, "Not supported", http.StatusBadRequest)
 		return
@@ -37,7 +37,7 @@ func shortenUrl(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	shortUrl, err := randstr.RandString(linkLength)
+	shortURL, err := randstr.RandString(linkLength)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
@@ -49,14 +49,14 @@ func shortenUrl(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	originalUrl := string(body)
-	parsedUrl, err := url.Parse(originalUrl)
-	if err != nil || parsedUrl.Host == "" {
+	originalURL := string(body)
+	parsedURL, err := url.Parse(originalURL)
+	if err != nil || parsedURL.Host == "" {
 		http.Error(response, "Invalid URL", http.StatusBadRequest)
 		return
 	}
 
-	ok := memoryStorage.Store(entity.ShortenURL{URL: shortUrl, OriginalURL: originalUrl})
+	ok := memoryStorage.Store(entity.ShortenURL{URL: shortURL, OriginalURL: originalURL})
 
 	if !ok {
 		// Likely a collision happened
@@ -72,16 +72,16 @@ func shortenUrl(response http.ResponseWriter, request *http.Request) {
 	if request.TLS == nil {
 		prefix = "http" + prefix
 	}
-	response.Write([]byte(prefix + shortUrl))
+	response.Write([]byte(prefix + shortURL))
 }
 
-func getOriginalUrl(response http.ResponseWriter, request *http.Request) {
+func getOriginalURL(response http.ResponseWriter, request *http.Request) {
 	requestedId := request.PathValue("id")
-	shortenUrl, ok := memoryStorage.Retrieve(requestedId)
+	shortenURL, ok := memoryStorage.Retrieve(requestedId)
 	if !ok {
 		http.Error(response, "Link not found", http.StatusBadRequest)
 		return
 	}
 
-	http.Redirect(response, request, shortenUrl.OriginalURL, http.StatusTemporaryRedirect)
+	http.Redirect(response, request, shortenURL.OriginalURL, http.StatusTemporaryRedirect)
 }

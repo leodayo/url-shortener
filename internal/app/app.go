@@ -76,8 +76,8 @@ func shortenURL(response http.ResponseWriter, request *http.Request) {
 }
 
 func getOriginalURL(response http.ResponseWriter, request *http.Request) {
-	requestedId := request.PathValue("id")
-	shortenURL, ok := memoryStorage.Retrieve(requestedId)
+	requestedID := request.PathValue("id")
+	shortenURL, ok := memoryStorage.Retrieve(requestedID)
 	if !ok {
 		http.Error(response, "Link not found", http.StatusBadRequest)
 		return

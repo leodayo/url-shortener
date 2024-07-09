@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"net/url"
+	"os"
 )
 
 var (
@@ -17,10 +18,26 @@ func init() {
 }
 
 func ParseFlags() {
-	flag.StringVar(&ServerAddress, "a", "localhost:8080", "server address")
+	flag.StringVar(&ServerAddress, "a", ServerAddress, "server address")
 	flag.Func("b", "base route to expand shortened URL", parseExpandPathFlag)
 
 	flag.Parse()
+}
+
+func ParseEnv() error {
+	if serverAddress, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
+		ServerAddress = serverAddress
+	}
+
+	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
+		parsedBaseURL, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+		ExpandPath = *parsedBaseURL
+	}
+
+	return nil
 }
 
 func parseExpandPathFlag(expandPath string) error {
@@ -31,6 +48,5 @@ func parseExpandPathFlag(expandPath string) error {
 	}
 
 	ExpandPath = *parsedExpandURL
-
 	return nil
 }

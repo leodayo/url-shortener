@@ -9,5 +9,10 @@ import (
 
 func Run() error {
 	config.ParseFlags()
+	err := config.ParseEnv()
+	if err != nil {
+		return err
+	}
+
 	return http.ListenAndServe(config.ServerAddress, handlers.MainRouter())
 }

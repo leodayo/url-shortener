@@ -12,7 +12,7 @@ var (
 
 func init() {
 	ServerAddress = "localhost:8080"
-	defaultExpandPath, _ := url.Parse("http://localhost:8000/expand")
+	defaultExpandPath, _ := url.Parse("http://localhost:8080/expand")
 	ExpandPath = *defaultExpandPath
 }
 

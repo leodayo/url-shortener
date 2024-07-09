@@ -24,13 +24,13 @@ func ParseFlags() {
 }
 
 func parseExpandPathFlag(expandPath string) error {
-	parsedExpandUrl, err := url.Parse(expandPath)
+	parsedExpandURL, err := url.Parse(expandPath)
 
 	if err != nil {
 		return err
 	}
 
-	ExpandPath = *parsedExpandUrl
+	ExpandPath = *parsedExpandURL
 
 	return nil
 }

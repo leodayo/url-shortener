@@ -65,10 +65,10 @@ func TestGetOriginalURL(t *testing.T) {
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 
-	parsedServerUrl, err := url.Parse(srv.URL)
+	parsedServerURL, err := url.Parse(srv.URL)
 	require.NoError(t, err)
-	config.ExpandPath.Host = parsedServerUrl.Host
-	config.ExpandPath.Scheme = parsedServerUrl.Scheme
+	config.ExpandPath.Host = parsedServerURL.Host
+	config.ExpandPath.Scheme = parsedServerURL.Scheme
 
 	validOriginalURL := "https://example.com"
 

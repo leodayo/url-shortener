@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/leodayo/url-shortener/internal/app/config"
 	"github.com/leodayo/url-shortener/internal/app/entity"
 	"github.com/leodayo/url-shortener/internal/app/randstr"
 	"github.com/leodayo/url-shortener/internal/app/storage"
@@ -28,7 +29,7 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	shortURL, err := randstr.RandString(linkLength)
+	shortID, err := randstr.RandString(linkLength)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
@@ -47,7 +48,7 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	ok := memoryStorage.Store(entity.ShortenURL{URL: shortURL, OriginalURL: originalURL})
+	ok := memoryStorage.Store(entity.ShortenURL{ID: shortID, OriginalURL: originalURL})
 
 	if !ok {
 		// Likely a collision happened
@@ -59,11 +60,8 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 	response.WriteHeader(http.StatusCreated)
 	response.Header().Set("Content-Type", "text/plain")
 
-	prefix := fmt.Sprintf("%s://%s/", request.URL.Scheme, request.Host)
-	if request.TLS == nil && request.URL.Scheme == "" {
-		prefix = "http" + prefix
-	}
-	response.Write([]byte(prefix + shortURL))
+	shortenedURL := fmt.Sprintf("%s/%s", config.ExpandPath.String(), shortID)
+	response.Write([]byte(shortenedURL))
 }
 
 func GetOriginalURL(response http.ResponseWriter, request *http.Request) {

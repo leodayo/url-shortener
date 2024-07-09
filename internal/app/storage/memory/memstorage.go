@@ -11,7 +11,7 @@ type ShortenURLMemoryStorage struct {
 }
 
 func (storage *ShortenURLMemoryStorage) Store(entity entity.ShortenURL) bool {
-	_, loaded := storage.syncMap.LoadOrStore(entity.URL, entity)
+	_, loaded := storage.syncMap.LoadOrStore(entity.ID, entity)
 	return !loaded
 }
 

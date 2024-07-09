@@ -1,6 +1,6 @@
 package entity
 
 type ShortenURL struct {
-	URL         string
+	ID          string
 	OriginalURL string
 }

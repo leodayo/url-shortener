@@ -3,9 +3,11 @@ package app
 import (
 	"net/http"
 
+	"github.com/leodayo/url-shortener/internal/app/config"
 	"github.com/leodayo/url-shortener/internal/app/handlers"
 )
 
 func Run() error {
-	return http.ListenAndServe("localhost:8080", handlers.MainRouter())
+	config.ParseFlags()
+	return http.ListenAndServe(config.ServerAddress, handlers.MainRouter())
 }

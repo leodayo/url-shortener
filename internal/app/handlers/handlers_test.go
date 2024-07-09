@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/leodayo/url-shortener/internal/app/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +19,7 @@ func TestShortenURL(t *testing.T) {
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 
-	expectedBodyRxString := fmt.Sprintf("^(http|https)%s/[a-z0-9]{%d}$", strings.Replace(srv.URL, "http", "", 1), linkLength)
+	expectedBodyRxString := fmt.Sprintf("^%s/[a-z0-9]{%d}$", config.ExpandPath.String(), linkLength)
 	expectedBodyRx := regexp.MustCompile(expectedBodyRxString)
 	tests := []struct {
 		name                 string
@@ -63,6 +65,11 @@ func TestGetOriginalURL(t *testing.T) {
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 
+	parsedServerUrl, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	config.ExpandPath.Host = parsedServerUrl.Host
+	config.ExpandPath.Scheme = parsedServerUrl.Scheme
+
 	validOriginalURL := "https://example.com"
 
 	request := resty.New().R()
@@ -85,7 +92,7 @@ func TestGetOriginalURL(t *testing.T) {
 	}{
 		{name: "Valid request", requestHost: shortenedURL, requestMethod: http.MethodGet, expectedCode: http.StatusTemporaryRedirect},
 		{name: "Bad request, not supported method", requestHost: shortenedURL, requestMethod: http.MethodPost, expectedCode: http.StatusMethodNotAllowed, expectedErrorMessage: ""},
-		{name: "Not found", requestHost: srv.URL + "/invalidId", requestMethod: http.MethodGet, expectedCode: http.StatusNotFound, expectedErrorMessage: "Link not found"},
+		{name: "Not found", requestHost: shortenedURL + "invalidId", requestMethod: http.MethodGet, expectedCode: http.StatusNotFound, expectedErrorMessage: "Link not found"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

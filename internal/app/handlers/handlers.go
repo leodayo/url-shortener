@@ -19,7 +19,7 @@ var memoryStorage storage.Storage[string, entity.ShortenURL] = new(memory.Shorte
 
 func ShortenURL(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
-		http.Error(response, "Not supported", http.StatusBadRequest)
+		http.Error(response, "Not supported", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -68,14 +68,14 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 
 func GetOriginalURL(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
-		http.Error(response, "Not supported", http.StatusBadRequest)
+		http.Error(response, "Not supported", http.StatusMethodNotAllowed)
 		return
 	}
 
 	requestedID := request.PathValue("id")
 	shortenURL, ok := memoryStorage.Retrieve(requestedID)
 	if !ok {
-		http.Error(response, "Link not found", http.StatusBadRequest)
+		http.Error(response, "Link not found", http.StatusNotFound)
 		return
 	}
 

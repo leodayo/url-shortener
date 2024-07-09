@@ -8,13 +8,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestShortenURL(t *testing.T) {
-	validHTTPSHost := "https://somehost/"
-	expectedBodyRxString := fmt.Sprintf("^(http|https)%s[a-z0-9]{%d}$", strings.Replace(validHTTPSHost, "https", "", 1), linkLength)
+	srv := httptest.NewServer(MainRouter())
+	defer srv.Close()
+
+	expectedBodyRxString := fmt.Sprintf("^(http|https)%s/[a-z0-9]{%d}$", strings.Replace(srv.URL, "http", "", 1), linkLength)
 	expectedBodyRx := regexp.MustCompile(expectedBodyRxString)
 	tests := []struct {
 		name                 string
@@ -24,29 +27,31 @@ func TestShortenURL(t *testing.T) {
 		expectedCode         int
 		expectedErrorMessage string
 	}{
-		{name: "Valid http request", requestHost: strings.Replace(validHTTPSHost, "https", "http", 1), requestMethod: http.MethodPost, requestBody: "http://example.com", expectedCode: http.StatusCreated},
-		{name: "Valid https request", requestHost: validHTTPSHost, requestMethod: http.MethodPost, requestBody: "https://example.com", expectedCode: http.StatusCreated},
-		{name: "Bad request, body contains not a URL", requestHost: validHTTPSHost, requestMethod: http.MethodPost, requestBody: "not a URL", expectedCode: http.StatusBadRequest, expectedErrorMessage: "Invalid URL"},
-		{name: "Bad request, not supported method", requestHost: validHTTPSHost, requestMethod: http.MethodGet, requestBody: "http://example.com", expectedCode: http.StatusBadRequest, expectedErrorMessage: "Not supported"},
-		{name: "Not found, wrong method", requestHost: validHTTPSHost + "/some/deeper/path", requestMethod: http.MethodPost, requestBody: "http://example.com", expectedCode: http.StatusNotFound},
+		{name: "Valid http request", requestHost: strings.Replace(srv.URL, "https", "http", 1), requestMethod: http.MethodPost, requestBody: "http://example.com", expectedCode: http.StatusCreated},
+		{name: "Valid https request", requestHost: srv.URL, requestMethod: http.MethodPost, requestBody: "https://example.com", expectedCode: http.StatusCreated},
+		{name: "Bad request, body contains not a URL", requestHost: srv.URL, requestMethod: http.MethodPost, requestBody: "not a URL", expectedCode: http.StatusBadRequest, expectedErrorMessage: "Invalid URL"},
+		{name: "Bad request, not supported method", requestHost: srv.URL, requestMethod: http.MethodGet, requestBody: "http://example.com", expectedCode: http.StatusMethodNotAllowed, expectedErrorMessage: ""},
+		{name: "Not found, wrong method", requestHost: srv.URL + "/some/deeper/path", requestMethod: http.MethodPost, requestBody: "http://example.com", expectedCode: http.StatusNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.requestMethod, tt.requestHost, strings.NewReader(tt.requestBody))
-			response := httptest.NewRecorder()
-			defer response.Result().Body.Close()
+			request := resty.New().R()
+			request.Method = tt.requestMethod
+			request.URL = tt.requestHost
+			request.Body = tt.requestBody
 
-			ShortenURL(response, request)
+			response, err := request.Send()
+			assert.NoError(t, err, "error making HTTP request")
 
-			assert.Equal(t, tt.expectedCode, response.Code, "expected status [%v], got [%v]", tt.expectedCode, response.Code)
+			assert.Equal(t, tt.expectedCode, response.StatusCode(), "expected status [%v], got [%v]", tt.expectedCode, response.StatusCode())
 			if tt.expectedCode == http.StatusCreated {
-				responseBody := response.Body.String()
+				responseBody := string(response.Body())
 				responseBody = strings.TrimSpace(responseBody)
 				assert.Regexp(t, expectedBodyRx, responseBody, "expected body to match [%v], got [%v]", expectedBodyRxString, responseBody)
 			}
 
 			if tt.expectedErrorMessage != "" {
-				responseBody := response.Body.String()
+				responseBody := string(response.Body())
 				responseBody = strings.TrimSpace(responseBody)
 				assert.Equal(t, tt.expectedErrorMessage, responseBody, "expected error message [%v], got [%v]", tt.expectedErrorMessage, responseBody)
 			}
@@ -55,16 +60,20 @@ func TestShortenURL(t *testing.T) {
 }
 
 func TestGetOriginalURL(t *testing.T) {
-	validHost := "https://somehost/"
+	srv := httptest.NewServer(MainRouter())
+	defer srv.Close()
+
 	validOriginalURL := "https://example.com"
 
-	request := httptest.NewRequest(http.MethodPost, validHost, strings.NewReader(validOriginalURL))
-	response := httptest.NewRecorder()
-	defer response.Result().Body.Close()
+	request := resty.New().R()
+	request.Method = http.MethodPost
+	request.URL = srv.URL
+	request.Body = validOriginalURL
+	response, err := request.Send()
 
-	ShortenURL(response, request)
-	require.Equal(t, http.StatusCreated, response.Code, "Failed to create shortened URL: expected status [%v], got [%v]", http.StatusCreated, response.Code)
-	shortenedURL := response.Body.String()
+	require.NoError(t, err, "error making HTTP request")
+	require.Equal(t, http.StatusCreated, response.StatusCode(), "Failed to create shortened URL: expected status [%v], got [%v]", http.StatusCreated, response.StatusCode())
+	shortenedURL := string(response.Body())
 	shortenedURL = strings.TrimSpace(shortenedURL)
 
 	tests := []struct {
@@ -75,20 +84,24 @@ func TestGetOriginalURL(t *testing.T) {
 		expectedErrorMessage string
 	}{
 		{name: "Valid request", requestHost: shortenedURL, requestMethod: http.MethodGet, expectedCode: http.StatusTemporaryRedirect},
-		{name: "Bad request, not supported method", requestHost: shortenedURL, requestMethod: http.MethodPost, expectedCode: http.StatusBadRequest, expectedErrorMessage: "Not supported"},
-		{name: "Not found", requestHost: validHost + "invalidId", requestMethod: http.MethodGet, expectedCode: http.StatusBadRequest, expectedErrorMessage: "Link not found"},
+		{name: "Bad request, not supported method", requestHost: shortenedURL, requestMethod: http.MethodPost, expectedCode: http.StatusMethodNotAllowed, expectedErrorMessage: ""},
+		{name: "Not found", requestHost: srv.URL + "/invalidId", requestMethod: http.MethodGet, expectedCode: http.StatusNotFound, expectedErrorMessage: "Link not found"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.requestMethod, tt.requestHost, nil)
-			shortenSplit := strings.Split(tt.requestHost, "/")
-			requestedID := shortenSplit[len(shortenSplit)-1]
-			request.SetPathValue("id", requestedID)
-			response := httptest.NewRecorder()
-			defer response.Result().Body.Close()
+			client := resty.New()
+			client.SetRedirectPolicy(resty.RedirectPolicyFunc(func(req *http.Request, via []*http.Request) error {
+				// Prevent auto redirect
+				return http.ErrUseLastResponse
+			}))
+			request := client.R()
+			request.Method = tt.requestMethod
+			request.URL = tt.requestHost
 
-			GetOriginalURL(response, request)
-			assert.Equal(t, tt.expectedCode, response.Code, "expected status [%v], got [%v]", tt.expectedCode, response.Code)
+			response, err := request.Send()
+			assert.NoError(t, err, "error making HTTP request")
+
+			assert.Equal(t, tt.expectedCode, response.StatusCode(), "expected status [%v], got [%v]", tt.expectedCode, response.StatusCode())
 
 			if tt.expectedCode == http.StatusTemporaryRedirect {
 				response.Header()
@@ -97,7 +110,7 @@ func TestGetOriginalURL(t *testing.T) {
 			}
 
 			if tt.expectedErrorMessage != "" {
-				responseBody := response.Body.String()
+				responseBody := string(response.Body())
 				responseBody = strings.TrimSpace(responseBody)
 				assert.Equal(t, tt.expectedErrorMessage, responseBody, "expected error message [%v], got [%v]", tt.expectedErrorMessage, responseBody)
 			}

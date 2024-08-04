@@ -12,12 +12,14 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/leodayo/url-shortener/internal/app/config"
+	"github.com/leodayo/url-shortener/internal/app/storage"
 	"github.com/leodayo/url-shortener/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestShortenURL(t *testing.T) {
+	storage.ItinInMemoryStorage()
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 
@@ -64,6 +66,7 @@ func TestShortenURL(t *testing.T) {
 }
 
 func TestShortenURLJSON(t *testing.T) {
+	storage.ItinInMemoryStorage()
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 	endpointURL := srv.URL + "/api/shorten"
@@ -107,6 +110,7 @@ func TestShortenURLJSON(t *testing.T) {
 }
 
 func TestGetOriginalURL(t *testing.T) {
+	storage.ItinInMemoryStorage()
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 

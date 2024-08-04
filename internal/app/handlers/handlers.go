@@ -70,12 +70,12 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 
 func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
-		http.Error(response, "Not supported", http.StatusMethodNotAllowed)
+		JSONError(response, "Not supported", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if request.Header.Get("Content-Type") != "application/json" {
-		http.Error(response, "Content-Type not supported", http.StatusBadRequest)
+		JSONError(response, "Content-Type not supported", http.StatusBadRequest)
 		return
 	}
 
@@ -83,20 +83,20 @@ func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
 	dec := json.NewDecoder(request.Body)
 	if err := dec.Decode(&shortenRequest); err != nil {
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
-		http.Error(response, err.Error(), http.StatusInternalServerError)
+		JSONError(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	originalURL := shortenRequest.Url
+	originalURL := shortenRequest.URL
 	parsedURL, err := url.Parse(originalURL)
 	if err != nil || parsedURL.Host == "" {
-		http.Error(response, "Invalid URL", http.StatusBadRequest)
+		JSONError(response, "Invalid URL", http.StatusBadRequest)
 		return
 	}
 
 	shortID, err := randstr.RandString(linkLength)
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
+		JSONError(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	ok := memoryStorage.Store(entity.ShortenURL{ID: shortID, OriginalURL: originalURL})
@@ -104,7 +104,7 @@ func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
 	if !ok {
 		// Likely a collision happened
 		// TODO: handle collisions gracefully
-		http.Error(response, "Something went wrong", http.StatusInternalServerError)
+		JSONError(response, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -119,7 +119,7 @@ func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
 	enc := json.NewEncoder(response)
 	if err := enc.Encode(shortenResponse); err != nil {
 		logger.Log.Debug("error encoding response", zap.Error(err))
-		http.Error(response, err.Error(), http.StatusInternalServerError)
+		JSONError(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -138,4 +138,13 @@ func GetOriginalURL(response http.ResponseWriter, request *http.Request) {
 	}
 
 	http.Redirect(response, request, shortenURL.OriginalURL, http.StatusTemporaryRedirect)
+}
+
+func JSONError(w http.ResponseWriter, error string, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(&models.ErrorResponse{Error: error}); err != nil {
+		http.Error(w, "error encoding a json error respose", http.StatusInternalServerError)
+	}
 }

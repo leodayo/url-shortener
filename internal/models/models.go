@@ -1,9 +1,13 @@
 package models
 
 type ShortenRequest struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
 type ShortenResponse struct {
 	Result string `json:"result"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
 }

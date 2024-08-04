@@ -68,8 +68,8 @@ func TestShortenURLJSON(t *testing.T) {
 	defer srv.Close()
 	endpointURL := srv.URL + "/api/shorten"
 
-	expectedUrlRxString := fmt.Sprintf("^%s/[a-z0-9]{%d}$", config.ExpandPath.String(), linkLength)
-	expectedUrlRx := regexp.MustCompile(expectedUrlRxString)
+	expectedURLRxString := fmt.Sprintf("^%s/[a-z0-9]{%d}$", config.ExpandPath.String(), linkLength)
+	expectedURLRx := regexp.MustCompile(expectedURLRxString)
 	tests := []struct {
 		name          string
 		requestHost   string
@@ -100,7 +100,7 @@ func TestShortenURLJSON(t *testing.T) {
 				var responseJSON models.ShortenResponse
 				json.Unmarshal(response.Body(), &responseJSON)
 
-				assert.Regexp(t, expectedUrlRx, responseJSON.Result, "expected body to match [%v], got [%v]", expectedUrlRxString, responseJSON.Result)
+				assert.Regexp(t, expectedURLRx, responseJSON.Result, "expected body to match [%v], got [%v]", expectedURLRxString, responseJSON.Result)
 			}
 		})
 	}

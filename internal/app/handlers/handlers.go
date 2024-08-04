@@ -61,8 +61,8 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	response.WriteHeader(http.StatusCreated)
 	response.Header().Set("Content-Type", "text/plain")
+	response.WriteHeader(http.StatusCreated)
 
 	shortenedURL := fmt.Sprintf("%s/%s", config.ExpandPath.String(), shortID)
 	response.Write([]byte(shortenedURL))
@@ -108,8 +108,9 @@ func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	response.WriteHeader(http.StatusCreated)
 	response.Header().Set("Content-Type", "application/json")
+	response.Header().Set("X-Content-Type-Options", "nosniff")
+	response.WriteHeader(http.StatusCreated)
 
 	shortenedURL := fmt.Sprintf("%s/%s", config.ExpandPath.String(), shortID)
 	shortenResponse := models.ShortenResponse{

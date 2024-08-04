@@ -22,3 +22,7 @@ func (storage *ShortenURLMemoryStorage) Retrieve(key string) (e entity.ShortenUR
 	}
 	return v.(entity.ShortenURL), ok
 }
+
+func CreateStorage() *ShortenURLMemoryStorage {
+	return new(ShortenURLMemoryStorage)
+}

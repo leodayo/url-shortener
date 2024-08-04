@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 	"github.com/leodayo/url-shortener/internal/app/randstr"
 	"github.com/leodayo/url-shortener/internal/app/storage"
 	"github.com/leodayo/url-shortener/internal/app/storage/memory"
+	"github.com/leodayo/url-shortener/internal/logger"
+	"github.com/leodayo/url-shortener/internal/models"
+	"go.uber.org/zap"
 )
 
 const linkLength = 6
@@ -62,6 +66,62 @@ func ShortenURL(response http.ResponseWriter, request *http.Request) {
 
 	shortenedURL := fmt.Sprintf("%s/%s", config.ExpandPath.String(), shortID)
 	response.Write([]byte(shortenedURL))
+}
+
+func ShortenURLJSON(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(response, "Not supported", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if request.Header.Get("Content-Type") != "application/json" {
+		http.Error(response, "Content-Type not supported", http.StatusBadRequest)
+		return
+	}
+
+	var shortenRequest models.ShortenRequest
+	dec := json.NewDecoder(request.Body)
+	if err := dec.Decode(&shortenRequest); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	originalURL := shortenRequest.Url
+	parsedURL, err := url.Parse(originalURL)
+	if err != nil || parsedURL.Host == "" {
+		http.Error(response, "Invalid URL", http.StatusBadRequest)
+		return
+	}
+
+	shortID, err := randstr.RandString(linkLength)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ok := memoryStorage.Store(entity.ShortenURL{ID: shortID, OriginalURL: originalURL})
+
+	if !ok {
+		// Likely a collision happened
+		// TODO: handle collisions gracefully
+		http.Error(response, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	response.WriteHeader(http.StatusCreated)
+	response.Header().Set("Content-Type", "application/json")
+
+	shortenedURL := fmt.Sprintf("%s/%s", config.ExpandPath.String(), shortID)
+	shortenResponse := models.ShortenResponse{
+		Result: shortenedURL,
+	}
+
+	enc := json.NewEncoder(response)
+	if err := enc.Encode(shortenResponse); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func GetOriginalURL(response http.ResponseWriter, request *http.Request) {

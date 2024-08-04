@@ -11,7 +11,7 @@ import (
 func MainRouter() http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.ResponseLogger, middleware.RequestLogger)
+	r.Use(middleware.ResponseLogger, middleware.GzipMiddleware, middleware.RequestLogger)
 
 	r.Get(config.ExpandPath.Path+"/{id}", GetOriginalURL)
 	r.Post("/", ShortenURL)

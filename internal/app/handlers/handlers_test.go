@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,11 +12,14 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/leodayo/url-shortener/internal/app/config"
+	"github.com/leodayo/url-shortener/internal/app/storage"
+	"github.com/leodayo/url-shortener/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestShortenURL(t *testing.T) {
+	storage.ItinInMemoryStorage()
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 
@@ -61,7 +65,52 @@ func TestShortenURL(t *testing.T) {
 	}
 }
 
+func TestShortenURLJSON(t *testing.T) {
+	storage.ItinInMemoryStorage()
+	srv := httptest.NewServer(MainRouter())
+	defer srv.Close()
+	endpointURL := srv.URL + "/api/shorten"
+
+	expectedURLRxString := fmt.Sprintf("^%s/[a-z0-9]{%d}$", config.ExpandPath.String(), linkLength)
+	expectedURLRx := regexp.MustCompile(expectedURLRxString)
+	tests := []struct {
+		name          string
+		requestHost   string
+		requestMethod string
+		requestBody   string
+		expectedCode  int
+	}{
+
+		{name: "Valid http request", requestHost: strings.Replace(endpointURL, "https", "http", 1), requestMethod: http.MethodPost, requestBody: "{\"Url\":\"http://example.com\"}", expectedCode: http.StatusCreated},
+		{name: "Valid https request", requestHost: endpointURL, requestMethod: http.MethodPost, requestBody: "{\"Url\":\"https://example.com\"}", expectedCode: http.StatusCreated},
+		{name: "Bad request, body contains not a URL", requestHost: endpointURL, requestMethod: http.MethodPost, requestBody: "{\"Url\":\"not a URL\"}", expectedCode: http.StatusBadRequest},
+		{name: "Bad request, not supported method", requestHost: endpointURL, requestMethod: http.MethodGet, requestBody: "{\"Url\":\"http://example.com\"}", expectedCode: http.StatusMethodNotAllowed},
+		{name: "Not found, wrong method", requestHost: endpointURL + "/some/deeper/path", requestMethod: http.MethodPost, requestBody: "{\"Url\":\"http://example.com\"}", expectedCode: http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := resty.New().R()
+			request.Method = tt.requestMethod
+			request.URL = tt.requestHost
+			request.Body = tt.requestBody
+			request.Header.Add("Content-Type", "application/json")
+
+			response, err := request.Send()
+			assert.NoError(t, err, "error making HTTP request")
+
+			assert.Equal(t, tt.expectedCode, response.StatusCode(), "expected status [%v], got [%v]", tt.expectedCode, response.StatusCode())
+			if tt.expectedCode == http.StatusCreated {
+				var responseJSON models.ShortenResponse
+				json.Unmarshal(response.Body(), &responseJSON)
+
+				assert.Regexp(t, expectedURLRx, responseJSON.Result, "expected body to match [%v], got [%v]", expectedURLRxString, responseJSON.Result)
+			}
+		})
+	}
+}
+
 func TestGetOriginalURL(t *testing.T) {
+	storage.ItinInMemoryStorage()
 	srv := httptest.NewServer(MainRouter())
 	defer srv.Close()
 

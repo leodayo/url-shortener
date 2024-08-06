@@ -5,13 +5,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/leodayo/url-shortener/internal/app/config"
+	"github.com/leodayo/url-shortener/internal/app/middleware"
 )
 
 func MainRouter() http.Handler {
 	r := chi.NewRouter()
 
-	r.Post("/", ShortenURL)
+	r.Use(middleware.ResponseLogger, middleware.GzipMiddleware, middleware.RequestLogger)
+
 	r.Get(config.ExpandPath.Path+"/{id}", GetOriginalURL)
+	r.Post("/", ShortenURL)
+	r.Post("/api/shorten", ShortenURLJSON)
 
 	return r
 }

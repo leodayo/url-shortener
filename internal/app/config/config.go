@@ -7,19 +7,22 @@ import (
 )
 
 var (
-	ServerAddress string
-	ExpandPath    url.URL
+	ServerAddress   string
+	ExpandPath      url.URL
+	FileStoragePath string
 )
 
 func init() {
 	ServerAddress = "localhost:8080"
 	defaultExpandPath, _ := url.Parse("http://localhost:8080/expand")
 	ExpandPath = *defaultExpandPath
+	FileStoragePath = "storage.json"
 }
 
 func ParseFlags() {
 	flag.StringVar(&ServerAddress, "a", ServerAddress, "server address")
 	flag.Func("b", "base route to expand shortened URL", parseExpandPathFlag)
+	flag.StringVar(&FileStoragePath, "f", FileStoragePath, "file storage path")
 
 	flag.Parse()
 }
@@ -35,6 +38,10 @@ func ParseEnv() error {
 			return err
 		}
 		ExpandPath = *parsedBaseURL
+	}
+
+	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
+		FileStoragePath = fileStoragePath
 	}
 
 	return nil

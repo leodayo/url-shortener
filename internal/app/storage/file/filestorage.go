@@ -50,14 +50,14 @@ func CreateStorage() (*ShortenURLFileStorage, error) {
 		fileWriter:    *fw,
 	}
 
-	if err := loadFromDisc(fileStorage); err != nil {
+	if err := loadFromDisk(fileStorage); err != nil {
 		return nil, err
 	}
 
 	return fileStorage, nil
 }
 
-func loadFromDisc(fileStorage *ShortenURLFileStorage) error {
+func loadFromDisk(fileStorage *ShortenURLFileStorage) error {
 	file, err := os.OpenFile(config.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
